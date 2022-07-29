@@ -1,4 +1,5 @@
-numpy
+numpy==1.23.0
+numba==0.55.2
 scipy
 pandas
 matplotlib
