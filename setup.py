@@ -14,7 +14,7 @@ with io.open("README.rst", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="ssam",
-    version="1.0.2",
+    version="1.0.3",
     author="Jeongbin Park",
     author_email="j.park@dkfz-heidelberg.de",
     description="SSAM",
@@ -29,7 +29,8 @@ setuptools.setup(
     ],
     ext_modules = [module_utils],
     install_requires=[
-        "numpy",
+        "numpy==1.23.0",
+        "numba==0.55.2",
         "scipy",
         "pandas",
         "matplotlib",
