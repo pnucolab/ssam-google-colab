@@ -29,7 +29,7 @@ setuptools.setup(
     ],
     ext_modules = [module_utils],
     install_requires=[
-        "numpy==1.23.0",
+        "numpy==1.21.0",
         "numba==0.55.2",
         "scipy",
         "pandas",
