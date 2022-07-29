@@ -35,7 +35,8 @@ setuptools.setup(
     ],
     ext_modules = [module_utils],
     install_requires=[
-        "numpy",
+        "numpy==1.21.0",
+        "numba==0.55.2",
         "scipy",
         "pandas",
         "matplotlib",
