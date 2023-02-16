@@ -31,6 +31,7 @@ setuptools.setup(
     install_requires=[
         "numpy==1.21.0",
         "numba==0.55.2",
+        "networkx==2.8.8",
         "scipy",
         "pandas",
         "matplotlib",
