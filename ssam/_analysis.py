@@ -531,9 +531,9 @@ class SSAMAnalysis(object):
             
         if scale:
             self._m("Scaling data...")
-            X = da.from_zarr(vf_normalized)[np.ravel(self.dataset.vf_norm > self.dataset.norm_threshold)]
-            mu = np.mean(X, axis=0).compute()
-            sigma = np.std(X, axis=0).compute()
+            X = da.from_zarr(vf_normalized)[np.ravel(self.dataset.vf_norm > self.dataset.norm_threshold)].compute()
+            mu = np.mean(X, axis=0)
+            sigma = np.std(X, axis=0)
             with np.errstate(divide='ignore', invalid='ignore'):
                 for i in range(total_chunkcnt):
                     self._m("Processing chunk %d (of %d)..."%(i+1, total_chunkcnt))
