@@ -12,6 +12,8 @@ inline omp_int_t omp_get_thread_num() { return 0;}
 inline omp_int_t omp_get_max_threads() { return 1;}
 #endif
 
+#include <immintrin.h> // AVX intrinsics
+
 #include <Python.h>
 #include "numpy/npy_math.h"
 #include "numpy/arrayobject.h"
@@ -93,39 +95,80 @@ void kde(std::map<pos3d, double> &arr, double *xx, double *yy, double *zz, int *
 }
 
 static double __corr__(double *a, double *b, int ngene) {
-    double a_mean = 0;
-    double b_mean = 0;
-    double aa_mean = 0;
-    double bb_mean = 0;
-    double a_std = 0;
-    double b_std = 0;
-    double rtn = 0;
+    __m512d sum_a = _mm512_setzero_pd();
+    __m512d sum_b = _mm512_setzero_pd();
+    __m512d sum_aa = _mm512_setzero_pd();
+    __m512d sum_bb = _mm512_setzero_pd();
+    __m512d sum_ab_diff = _mm512_setzero_pd();
+
     int i;
 
-    for (i=0; i<ngene; i++) {
-        a_mean += a[i];
-        b_mean += b[i];
-        aa_mean += a[i]*a[i];
-        bb_mean += b[i]*b[i];
+    // Handle bulk of data with AVX-512
+    for (i = 0; i <= ngene - 8; i += 8) {
+        __m512d va = _mm512_loadu_pd(&a[i]);
+        __m512d vb = _mm512_loadu_pd(&b[i]);
+
+        sum_a = _mm512_add_pd(sum_a, va);
+        sum_b = _mm512_add_pd(sum_b, vb);
+        
+        sum_aa = _mm512_add_pd(sum_aa, _mm512_mul_pd(va, va));
+        sum_bb = _mm512_add_pd(sum_bb, _mm512_mul_pd(vb, vb));
     }
 
+    double arr_a[8], arr_b[8], arr_aa[8], arr_bb[8];
+    _mm512_storeu_pd(arr_a, sum_a);
+    _mm512_storeu_pd(arr_b, sum_b);
+    _mm512_storeu_pd(arr_aa, sum_aa);
+    _mm512_storeu_pd(arr_bb, sum_bb);
+
+    double a_mean = 0, b_mean = 0, aa_mean = 0, bb_mean = 0;
+    for(int j = 0; j < 8; j++) {
+        a_mean += arr_a[j];
+        b_mean += arr_b[j];
+        aa_mean += arr_aa[j];
+        bb_mean += arr_bb[j];
+    }
     a_mean /= ngene;
     b_mean /= ngene;
     aa_mean /= ngene;
     bb_mean /= ngene;
 
-    a_std = sqrt(aa_mean - a_mean * a_mean);
-    b_std = sqrt(bb_mean - b_mean * b_mean);
-
-    if (a_std == 0 || b_std == 0) {
-        rtn = 0;
-    } else {
-        for (i=0; i<ngene; i++)
-            rtn += (a[i] - a_mean) * (b[i] - b_mean);
-        rtn /= a_std * b_std;
+    // Handle remainder
+    for (; i < ngene; i++) {
+        a_mean += a[i] / ngene;
+        b_mean += b[i] / ngene;
+        aa_mean += a[i] * a[i] / ngene;
+        bb_mean += b[i] * b[i] / ngene;
     }
 
-    rtn /= ngene;
+    double a_std = sqrt(aa_mean - a_mean * a_mean);
+    double b_std = sqrt(bb_mean - b_mean * b_mean);
+    double rtn = 0;
+
+    if (a_std != 0 && b_std != 0) {
+        for (i = 0; i <= ngene - 8; i += 8) {
+            __m512d va = _mm512_loadu_pd(&a[i]);
+            __m512d vb = _mm512_loadu_pd(&b[i]);
+
+            va = _mm512_sub_pd(va, _mm512_set1_pd(a_mean));
+            vb = _mm512_sub_pd(vb, _mm512_set1_pd(b_mean));
+
+            sum_ab_diff = _mm512_add_pd(sum_ab_diff, _mm512_mul_pd(va, vb));
+        }
+
+        double arr_ab_diff[8];
+        _mm512_storeu_pd(arr_ab_diff, sum_ab_diff);
+        for(int j = 0; j < 8; j++) {
+            rtn += arr_ab_diff[j];
+        }
+
+        for (; i < ngene; i++) {
+            rtn += (a[i] - a_mean) * (b[i] - b_mean);
+        }
+
+        rtn /= (a_std * b_std * ngene);
+    }
+
     return rtn;
 }
 
