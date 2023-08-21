@@ -5,6 +5,11 @@ try:
 except ImportError:
     print("Please install Numpy first. e.g. pip install numpy")
     exit(1)
+try:
+    import torch
+except ImportError:
+    print("Please install Pytorch first. Instructions: https://pytorch.org/get-started/locally/")
+    exit(1)
 from glob import glob
 
 module_utils = setuptools.extension.Extension('ssam.utils', sources=["c/utils.cpp"], extra_compile_args=["-fopenmp"], extra_link_args=["-fopenmp"], include_dirs=[np.get_include()])
@@ -14,7 +19,7 @@ with io.open("README.rst", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="ssam",
-    version="1.0.3",
+    version="1.1.0",
     author="Jeongbin Park",
     author_email="j.park@dkfz-heidelberg.de",
     description="SSAM",
@@ -29,8 +34,8 @@ setuptools.setup(
     ],
     ext_modules = [module_utils],
     install_requires=[
-        "numpy==1.21.0",
-        "numba==0.55.2",
+        "numpy==1.24.4",
+        "numba==0.57.1",
         "networkx==2.8.8",
         "scipy",
         "pandas",
@@ -42,6 +47,12 @@ setuptools.setup(
         "sparse",
         "scikit-image",
         "pyarrow",
+        "pyyaml",
+        "dask",
+        "dask[array]",
+        "zarr",
+        "hdbscan",
+        "torch",
         "packaging",
     ]
 )

@@ -1,5 +1,5 @@
-numpy==1.21.0
-numba==0.55.2
+numpy==1.24.4
+numba==0.57.1
 networkx==2.8.8
 scipy
 pandas
@@ -11,4 +11,10 @@ python-louvain
 sparse
 scikit-image
 pyarrow
+pyyaml
+dask
+dask[array]
+zarr
+hdbscan
+torch
 packaging
