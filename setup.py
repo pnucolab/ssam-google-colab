@@ -35,8 +35,8 @@ setuptools.setup(
     ],
     ext_modules = [module_utils],
     install_requires=[
-        "numpy==1.21.0",
-        "numba==0.55.2",
+        "numpy==1.24.4",
+        "numba==0.57.1",
         "networkx==2.8.8",
         "scipy",
         "pandas",
