@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <queue>
-#include <map>
+#include <unordered_map>
 
 #if defined(_OPENMP)
 #include <omp.h>
@@ -57,7 +57,7 @@ static double gauss_kernel(double x, double y, double z) {
     return exp(-0.5 * (x*x + y*y + z*z));
 }
 
-void kde_gpt(std::unordered_map<pos3d, double> &arr, double *xx, double *yy, double *zz, int *shape, int npts, double bandwidth, double prune_coeff, int ncores) {
+void kde(std::unordered_map<pos3d, double> &arr, double *xx, double *yy, double *zz, int *shape, int npts, double bandwidth, double prune_coeff, int ncores) {
     int maxdist;
     if (prune_coeff > 0) {
         maxdist = static_cast<int>(bandwidth * prune_coeff);
@@ -195,8 +195,8 @@ static PyObject *calc_kde(PyObject *self, PyObject *args, PyObject *kwargs) {
     int kernel = 0;
     unsigned int npts;
     int cnt;
-    std::map<pos3d, double> oarr_map;
-    std::map<pos3d, double>::iterator it;
+    std::unordered_map<pos3d, double> oarr_map;
+    std::unordered_map<pos3d, double>::iterator it;
 
     static const char *kwlist[] = { "h", "x", "y", "z", "shape", "prune_coeff", "kernel", "ncores", NULL };
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "dOOOOd|ii", const_cast<char **>(kwlist), &h, &arg1, &arg2, &arg3, &arg4, &prune_coeff, &kernel, &ncores)) return NULL;
@@ -226,12 +226,11 @@ static PyObject *calc_kde(PyObject *self, PyObject *args, PyObject *kwargs) {
     vlist = (PyObject *)PyList_New(oarr_map.size());
     
     cnt = 0;
-    for (it = oarr_map.begin(); it != oarr_map.end(); it++)
-    {
-        PyList_SetItem(xlist, cnt, PyLong_FromLong((long)(it->first.x)));
-        PyList_SetItem(ylist, cnt, PyLong_FromLong((long)(it->first.y)));
-        PyList_SetItem(zlist, cnt, PyLong_FromLong((long)(it->first.z)));
-        PyList_SetItem(vlist, cnt, PyFloat_FromDouble(it->second));
+    for (const auto& pair : oarr_map) {
+        PyList_SetItem(xlist, cnt, PyLong_FromLong((long)(pair.first.x)));
+        PyList_SetItem(ylist, cnt, PyLong_FromLong((long)(pair.first.y)));
+        PyList_SetItem(zlist, cnt, PyLong_FromLong((long)(pair.first.z)));
+        PyList_SetItem(vlist, cnt, PyFloat_FromDouble(pair.second));
         cnt++;
     }
     PyList_SetItem(poslist, 0, xlist);
