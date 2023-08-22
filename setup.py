@@ -12,7 +12,7 @@ except ImportError:
     exit(1)
 from glob import glob
 
-module_utils = setuptools.extension.Extension('ssam.utils', sources=["c/utils.cpp"], extra_compile_args=["-fopenmp"], extra_link_args=["-fopenmp"], include_dirs=[np.get_include()])
+module_utils = setuptools.extension.Extension('ssam.utils', sources=["c/utils.cpp"], extra_compile_args=["-fopenmp", "-mavx512f"], extra_link_args=["-fopenmp", "-mavx512f"], include_dirs=[np.get_include()])
 
 with io.open("README.rst", "r", encoding="utf-8") as fh:
     long_description = fh.read()
