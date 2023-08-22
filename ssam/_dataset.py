@@ -159,16 +159,17 @@ class SSAMDataset(object):
         im = np.array(self.vf_norm, copy=True)
         if rotate == 1 or rotate == 3:
             im = im.swapaxes(0, 1)
-        plt.imshow(im[..., z], cmap=cmap, interpolation='nearest')
+        plt.imshow(im[..., z].T, cmap=cmap, interpolation='nearest')
+        plt.gca().invert_yaxis()
         if rotate == 1:
-            plt.gca().invert_xaxis()
+            plt.gca().invert_yaxis()
         elif rotate == 2:
             plt.gca().invert_xaxis()
             plt.gca().invert_yaxis()
         elif rotate == 3:
-            plt.gca().invert_yaxis()
+            plt.gca().invert_xaxis()
 
-    def plot_localmax(self, c=None, cmap=None, s=1, rotate=0):
+    def plot_localmax(self, c=None, cmap=None, s=1, mask=None, rotate=0):
         """
         Scatter plot the local maxima.
 
@@ -183,19 +184,22 @@ class SSAMDataset(object):
         if rotate < 0 or rotate > 3:
             raise ValueError("rotate can only be 0, 1, 2, 3")
         if rotate == 0 or rotate == 2:
-            dim0, dim1 = 1, 0
-        elif rotate == 1 or rotate == 3:
             dim0, dim1 = 0, 1
-        plt.scatter(self.local_maxs[dim0], self.local_maxs[dim1], s=s, c=c, cmap=cmap)
+        elif rotate == 1 or rotate == 3:
+            dim0, dim1 = 1, 0
+        if mask is None:
+            mask = np.ones(len(self.local_maxs[0]), dtype=bool)
+        plt.scatter(self.local_maxs[dim0][mask], self.local_maxs[dim1][mask], s=s, c=c, cmap=cmap)
         plt.xlim([0, self.vf_norm.shape[dim0]])
         plt.ylim([self.vf_norm.shape[dim1], 0])
+        plt.gca().invert_yaxis()
         if rotate == 1:
-            plt.gca().invert_xaxis()
+            plt.gca().invert_yaxis()
         elif rotate == 2:
             plt.gca().invert_xaxis()
             plt.gca().invert_yaxis()
         elif rotate == 3:
-            plt.gca().invert_yaxis()    
+            plt.gca().invert_xaxis() 
         
     def _run_pca(self, exclude_bad_clusters, pca_dims, random_state):
         if exclude_bad_clusters:
@@ -385,14 +389,14 @@ class SSAMDataset(object):
         all_colors = [background if not j in centroid_indices else colors[i] for i, j in enumerate(range(num_ctmaps))]
         cmap_internal = ListedColormap(all_colors)
 
-        celltype_maps_internal = np.array(self.filtered_celltype_maps[..., z], copy=True)
+        celltype_maps_internal = np.array(self.filtered_celltype_maps[..., z].T, copy=True)
         empty_mask = celltype_maps_internal == -1
         celltype_maps_internal[empty_mask] = 0
         sctmap = cmap_internal(celltype_maps_internal)
         sctmap[empty_mask] = (0, 0, 0, 0)
 
         if set_alpha:
-            alpha = np.array(self.max_correlations[..., z], copy=True)
+            alpha = np.array(self.max_correlations[..., z].T, copy=True)
             alpha[alpha < 0] = 0 # drop negative correlations
             alpha = min_r + alpha / (np.max(alpha) / (1.0 - min_r))
             sctmap[..., 3] = alpha
@@ -403,13 +407,14 @@ class SSAMDataset(object):
         plt.gca().set_facecolor(background)
         plt.imshow(sctmap, interpolation='nearest')
         
+        plt.gca().invert_yaxis()
         if rotate == 1:
-            plt.gca().invert_xaxis()
+            plt.gca().invert_yaxis()
         elif rotate == 2:
             plt.gca().invert_xaxis()
             plt.gca().invert_yaxis()
         elif rotate == 3:
-            plt.gca().invert_yaxis()
+            plt.gca().invert_xaxis()
 
         return
 
@@ -436,8 +441,8 @@ class SSAMDataset(object):
         if z is None:
             z = int(self.shape[2] / 2)
         
-        inferred_domains = self.inferred_domains[..., z]
-        inferred_domains_cells = self.inferred_domains_cells[..., z]
+        inferred_domains = self.inferred_domains[..., z].T
+        inferred_domains_cells = self.inferred_domains_cells[..., z].T
         
         if rotate == 1 or rotate == 3:
             inferred_domains = inferred_domains.swapaxes(0, 1)
@@ -459,17 +464,18 @@ class SSAMDataset(object):
             plt.imshow(inferred_domains, cmap=ListedColormap(colors_domains), interpolation='nearest')
         plt.imshow(inferred_domains_cells, cmap=ListedColormap(colors_cells), interpolation='nearest')
         
+        plt.gca().invert_yaxis()
         if rotate == 1:
-            plt.gca().invert_xaxis()
+            plt.gca().invert_yaxis()
         elif rotate == 2:
             plt.gca().invert_xaxis()
             plt.gca().invert_yaxis()
         elif rotate == 3:
-            plt.gca().invert_yaxis()
+            plt.gca().invert_xaxis()
             
         return
     
-    def plot_diagnostic_plot(self, centroid_index, cluster_name=None, cluster_color=None, cmap=None, rotate=0, z=None, use_embedding="tsne", known_signatures=[], correlation_methods=[]):
+    def plot_diagnostic_plot(self, centroid_index, s=1, cluster_name=None, cluster_color=None, cmap=None, rotate=0, z=None, use_embedding="tsne", known_signatures=[], correlation_methods=[]):
         """
         Plot the diagnostic plot. This method requires `plot_tsne` or `plot_umap` was run at least once before.
 
@@ -517,23 +523,13 @@ class SSAMDataset(object):
                 
         ax = plt.subplot(1, 4, 1)
         mask = self.filtered_cluster_labels == centroid_index
-        plt.scatter(self.local_maxs[0][mask], self.local_maxs[1][mask], c=[cluster_color])
         self.plot_l1norm(rotate=rotate, cmap="Greys", z=z)
+        self.plot_localmax(rotate=rotate, c=[cluster_color], mask=mask, s=s)
 
         ax = plt.subplot(1, 4, 2)
-        ctmap = np.zeros([self.filtered_celltype_maps.shape[1], self.filtered_celltype_maps.shape[0], 4])
-        ctmap[self.filtered_celltype_maps[..., z].T == centroid_index] = to_rgba(cluster_color)
-        ctmap[np.logical_and(self.filtered_celltype_maps[..., z].T != centroid_index, self.filtered_celltype_maps[..., 0].T > -1)] = [0.9, 0.9, 0.9, 1]
-        if rotate == 0 or rotate == 2:
-            ctmap = ctmap.swapaxes(0, 1)
-        ax.imshow(ctmap, interpolation='nearest')
-        if rotate == 1:
-            ax.invert_xaxis()
-        elif rotate == 2:
-            ax.invert_xaxis()
-            ax.invert_yaxis()
-        elif rotate == 3:
-            ax.invert_yaxis()
+        ctmap_colors = [(0.9, 0.9, 0.9, 1), ] * (self.filtered_celltype_maps[..., z].max() + 1)
+        ctmap_colors[centroid_index] = cluster_color
+        self.plot_celltypes_map(rotate=rotate, colors=ctmap_colors, z=z, background='white')
 
         ax = plt.subplot(total_signatures, 4, 3)
         ax.bar(self.genes, p, yerr=e)
