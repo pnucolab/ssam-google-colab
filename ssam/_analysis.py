@@ -37,9 +37,7 @@ import time
 import pyarrow
 from packaging import version
 
-from .utils import corr, calc_ctmap, calc_corrmap, flood_fill, calc_kde
-from .aaec import AAEClassifier
-
+from .utils import corr, calc_ctmap, calc_corrmap, calc_kde
 
 def run_sctransform(data, clip_range=None, verbose=True, debug_path=None, plot_model_pars=False, **kwargs):
     """
@@ -842,6 +840,11 @@ class SSAMAnalysis(object):
         
     
     def map_celltypes_aaec(self, n_celltypes=-1, X=None, labels=None, use_transferred_labels=False, unsupervised=False, beta=0, epochs=1000, n=1, seed=0, batch_size=1000, sample_size=0, chunk_size=100000, z_dim=10, noise=0, normalize=False, use_forget_labels=False):
+        try:
+            from .aaec import AAEClassifier
+        except:
+            print("Please install Pytorch to use AAE Classifier.")
+
         # beta: CVPR 2019, Class-Balanced Loss Based on Effective Number of Samples, Y. Cui et al.
         if not unsupervised:
             if labels is None:
