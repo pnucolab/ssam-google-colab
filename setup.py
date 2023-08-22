@@ -19,9 +19,9 @@ with io.open("README.rst", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="ssam",
-    version="1.1.0",
+    version="1.1.1",
     author="Jeongbin Park",
-    author_email="j.park@dkfz-heidelberg.de",
+    author_email="jeongbin.park@pusan.ac.kr",
     description="SSAM",
     long_description=long_description,
     long_description_content_type="text/markdown",
