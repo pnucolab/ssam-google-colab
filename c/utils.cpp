@@ -31,67 +31,73 @@ struct pos3d {
     long y;
     long z;
 };
-bool operator< (pos3d a, pos3d b) { return (a.x == b.x && a.y == b.y)?(a.z < b.z):((a.x == b.x)?(a.y < b.y):(a.x < b.x)); }
 
-
-static double gauss_kernel(double x, double y, double z) {
-    return exp(-0.5 * (x*x + y*y + z*z)); // this is not normalized
+namespace std {
+    template <>
+    struct hash<pos3d> {
+        std::size_t operator()(const pos3d &p) const {
+            const std::size_t prime1 = 73856093;
+            const std::size_t prime2 = 19349663;
+            const std::size_t prime3 = 83492791;
+            
+            std::size_t hx = std::hash<long>()(p.x);
+            std::size_t hy = std::hash<long>()(p.y);
+            std::size_t hz = std::hash<long>()(p.z);
+            
+            return hx * prime1 ^ hy * prime2 ^ hz * prime3;
+        }
+    };
 }
 
-void kde(std::map<pos3d, double> &arr, double *xx, double *yy, double *zz, int *shape, int npts, double bandwidth, double prune_coeff, int ncores) {
-    int maxdist, xs, xe, ys, ye, zs, ze;
-    double value;
-    std::map<pos3d, double>::iterator it;
+bool operator==(const pos3d& a, const pos3d& b) {
+    return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+static double gauss_kernel(double x, double y, double z) {
+    return exp(-0.5 * (x*x + y*y + z*z));
+}
+
+void kde_gpt(std::unordered_map<pos3d, double> &arr, double *xx, double *yy, double *zz, int *shape, int npts, double bandwidth, double prune_coeff, int ncores) {
+    int maxdist;
     if (prune_coeff > 0) {
-        maxdist = (int)(bandwidth * prune_coeff);
+        maxdist = static_cast<int>(bandwidth * prune_coeff);
     } else {
         maxdist = -1;
     }
-    omp_lock_t lock;
-    omp_init_lock(&lock);
-    #pragma omp parallel for num_threads(ncores) private(it, value, xs, xe, ys, ye, zs, ze)
-    for (int i=0; i<npts; i++) {
-        int x0 = (int)xx[i];
-        int y0 = (int)yy[i];
-        int z0 = (int)zz[i];
-        if (maxdist > 0) {
-            xs = x0-maxdist;
-            xe = x0+maxdist+1;
-            ys = y0-maxdist;
-            ye = y0+maxdist+1;
-            zs = z0-maxdist;
-            ze = z0+maxdist+1;
-        } else {
-            xs = 0;
-            xe = shape[0];
-            ys = 0;
-            ye = shape[1];
-            zs = 0;
-            ze = shape[2];
-        }
-        for (int x=xs; x<xe; x++) {
-            if (x < 0 || x >= shape[0])
-                continue;
-            for (int y=ys; y<ye; y++) {
-                if (y < 0 || y >= shape[1])
-                    continue;
-                for (int z=zs; z<ze; z++) {
-                    if (z < 0 || z >= shape[2])
-                        continue;
-                    pos3d key{.x = x, .y = y, .z = z};
-                    value = gauss_kernel((x-xx[i])/bandwidth, (y-yy[i])/bandwidth, (z-zz[i])/bandwidth);
-                    omp_set_lock(&lock);
-                    it = arr.find(key);
-                    if (it == arr.end())
-                        arr[key] = value;
-                    else
-                        it->second += value;
-                    omp_unset_lock(&lock);
+
+    #pragma omp parallel num_threads(ncores)
+    {
+        std::unordered_map<pos3d, double> local_map;
+
+        #pragma omp for
+        for (int i = 0; i < npts; i++) {
+            int x0 = static_cast<int>(xx[i]);
+            int y0 = static_cast<int>(yy[i]);
+            int z0 = static_cast<int>(zz[i]);
+
+            int xs = (maxdist > 0) ? std::max(0, x0 - maxdist) : 0;
+            int xe = (maxdist > 0) ? std::min(shape[0], x0 + maxdist + 1) : shape[0];
+            int ys = (maxdist > 0) ? std::max(0, y0 - maxdist) : 0;
+            int ye = (maxdist > 0) ? std::min(shape[1], y0 + maxdist + 1) : shape[1];
+            int zs = (maxdist > 0) ? std::max(0, z0 - maxdist) : 0;
+            int ze = (maxdist > 0) ? std::min(shape[2], z0 + maxdist + 1) : shape[2];
+
+            for (int x = xs; x < xe; x++) {
+                for (int y = ys; y < ye; y++) {
+                    for (int z = zs; z < ze; z++) {
+                        pos3d key{x, y, z};
+                        double value = gauss_kernel((x - xx[i]) / bandwidth, (y - yy[i]) / bandwidth, (z - zz[i]) / bandwidth);
+                        local_map[key] += value;
+                    }
                 }
             }
         }
+
+        #pragma omp critical
+        for (const auto& pair : local_map) {
+            arr[pair.first] += pair.second;
+        }
     }
-    omp_destroy_lock(&lock);
 }
 
 static double __corr__(double *a, double *b, int ngene) {
