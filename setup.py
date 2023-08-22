@@ -25,7 +25,7 @@ setuptools.setup(
     description="SSAM",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/HiDiHlabs/ssam",
+    url="https://github.com/pnucolab/ssam",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
