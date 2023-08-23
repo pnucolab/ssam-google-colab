@@ -198,11 +198,11 @@ class SSAMAnalysis(object):
         self.verbose = verbose
 
         if 'kde_computed' in self.dataset.zarr_group and all(self.dataset.zarr_group['kde_computed']):
-            self._m("Loaded an existing KDE result.")
+            self._m("Loaded existing KDE results.")
             self._load_kde()
 
         if 'local_maxs' in self.dataset.zarr_group:
-            self._m("Loaded an existing local maxima.")
+            self._m("Loaded existing local maxima.")
             self.dataset.local_maxs = tuple(self.dataset.zarr_group['local_maxs'][:])
         
         if 'vf_normalized' in self.dataset.zarr_group and 'normalized_vectors' in self.dataset.zarr_group:
@@ -215,7 +215,7 @@ class SSAMAnalysis(object):
             self.dataset.scaled_vectors = self.dataset.zarr_group['scaled_vectors'][:]
         
         if 'cluster_labels' in self.dataset.zarr_group and 'filtered_cluster_labels' in self.dataset.zarr_group:
-            self._m("Loaded an existing cluster labels.")
+            self._m("Loaded existing cluster labels.")
             self.dataset.cluster_labels = self.dataset.zarr_group['cluster_labels'][:]
             self.dataset.filtered_cluster_labels = self.dataset.zarr_group['filtered_cluster_labels'][:]
             self.dataset.centroids = self.dataset.zarr_group['centroids'][:]
@@ -230,7 +230,7 @@ class SSAMAnalysis(object):
             self.dataset.umap = self.dataset.zarr_group['umap'][:]
         
         if 'celltype_maps' in self.dataset.zarr_group:
-            self._m("Loaded an existing cell type maps.")
+            self._m("Loaded existing cell type maps.")
             self.dataset.celltype_maps = self.dataset.zarr_group['celltype_maps'][:]
             if 'max_correlations' in self.dataset.zarr_group:
                 self.dataset.max_correlations = self.dataset.zarr_group['max_correlations'][:]
@@ -242,30 +242,30 @@ class SSAMAnalysis(object):
                 self.dataset.max_probabilities = None
 
         if 'filtered_celltype_maps' in self.dataset.zarr_group:
-            self._m("Loaded an existing filtered cell type maps.")
+            self._m("Loaded existing filtered cell type maps.")
             self.dataset.filtered_celltype_maps = self.dataset.zarr_group['filtered_celltype_maps'][:]
 
         if 'celltype_binned_centers' in self.dataset.zarr_group and 'celltype_binned_counts' in self.dataset.zarr_group:
-            self._m("Loaded an existing cell type binned centers and counts.")
+            self._m("Loaded existing cell type binned centers and counts.")
             self.dataset.celltype_binned_centers = self.dataset.zarr_group['celltype_binned_centers'][:]
             self.dataset.celltype_binned_counts = self.dataset.zarr_group['celltype_binned_counts'][:]
         
         if 'inferred_domains' in self.dataset.zarr_group and 'inferred_domains_cells' in self.dataset.zarr_group:
-            self._m("Loaded an existing inferred domains.")
+            self._m("Loaded existing inferred domains.")
             self.dataset.inferred_domains = self.dataset.zarr_group['inferred_domains'][:]
             self.dataset.inferred_domains_cells = self.dataset.zarr_group['inferred_domains_cells'][:]
 
         if 'inferred_domains_compositions' in self.dataset.zarr_group:
-            self._m("Loaded an existing inferred domains compositions.")
+            self._m("Loaded existing inferred domains compositions.")
             self.dataset.inferred_domains_compositions = self.dataset.zarr_group['inferred_domains_compositions'][:]
         
-        if 'watershed_segmentations' in self.dataset.zarr_group and 'watershed_celltype_map' in self.dataset.zarr_group:
-            self._m("Loaded an existing watershed segmentations.")
+        if 'watershed_segmentations' in self.dataset.zarr_group and 'watershed_celltype_maps' in self.dataset.zarr_group:
+            self._m("Loaded existing watershed segmentations.")
             self.dataset.watershed_segmentations = self.dataset.zarr_group['watershed_segmentations'][:]
-            self.dataset.watershed_celltype_map = self.dataset.zarr_group['watershed_celltype_map'][:]
+            self.dataset.watershed_celltype_map = self.dataset.zarr_group['watershed_celltype_maps'][:]
         
         if 'transferred_cluster_labels' in self.dataset.zarr_group and 'transferred_cluster_correlations' in self.dataset.zarr_group:
-            self._m("Loaded an existing transferred cluster labels.")
+            self._m("Loaded existing transferred cluster labels.")
             self.dataset.transferred_cluster_labels = self.dataset.zarr_group['transferred_cluster_labels'][:]
             self.dataset.transferred_cluster_correlations = self.dataset.zarr_group['transferred_cluster_correlations'][:]
 
