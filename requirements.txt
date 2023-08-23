@@ -16,5 +16,4 @@ dask
 dask[array]
 zarr
 hdbscan
-torch
 packaging
