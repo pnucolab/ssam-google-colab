@@ -5,11 +5,6 @@ try:
 except ImportError:
     print("Please install Numpy first. e.g. pip install numpy")
     exit(1)
-try:
-    import torch
-except ImportError:
-    print("Please install Pytorch first. Instructions: https://pytorch.org/get-started/locally/")
-    exit(1)
 from glob import glob
 
 module_utils = setuptools.extension.Extension('ssam.utils', sources=["c/utils.cpp"], extra_compile_args=["-fopenmp", "-mavx512f"], extra_link_args=["-fopenmp", "-mavx512f"], include_dirs=[np.get_include()])
