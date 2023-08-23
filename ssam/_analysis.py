@@ -262,7 +262,7 @@ class SSAMAnalysis(object):
         if 'watershed_segmentations' in self.dataset.zarr_group and 'watershed_celltype_maps' in self.dataset.zarr_group:
             self._m("Loaded existing watershed segmentations.")
             self.dataset.watershed_segmentations = self.dataset.zarr_group['watershed_segmentations'][:]
-            self.dataset.watershed_celltype_map = self.dataset.zarr_group['watershed_celltype_maps'][:]
+            self.dataset.watershed_celltype_maps = self.dataset.zarr_group['watershed_celltype_maps'][:]
         
         if 'transferred_cluster_labels' in self.dataset.zarr_group and 'transferred_cluster_correlations' in self.dataset.zarr_group:
             self._m("Loaded existing transferred cluster labels.")
