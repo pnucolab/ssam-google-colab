@@ -47,6 +47,7 @@ setuptools.setup(
         "dask[array]",
         "zarr",
         "hdbscan",
+        "opencv-python",
         "packaging",
     ]
 )

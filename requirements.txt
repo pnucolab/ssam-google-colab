@@ -16,4 +16,5 @@ dask
 dask[array]
 zarr
 hdbscan
+opencv-python
 packaging
