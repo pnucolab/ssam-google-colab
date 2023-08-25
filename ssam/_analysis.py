@@ -17,8 +17,8 @@ from scipy import ndimage
 from sklearn.decomposition import PCA
 from tempfile import TemporaryDirectory
 from sklearn.neighbors import kneighbors_graph
-import community
-import networkx as nx
+import lovain, leidenalg
+import igraph as ig
 from sklearn.cluster import DBSCAN, OPTICS
 import hdbscan
 from skimage import filters
@@ -627,7 +627,7 @@ class SSAMAnalysis(object):
             centroids_stdev.append(centroid_stdev)
         return centroids, centroids_stdev#, medoids
 
-    def cluster_vectors(self, method="louvain", pca_dims=-1, min_cluster_size=2, max_correlation=1.0, metric="correlation",
+    def cluster_vectors(self, method="leiden", pca_dims=-1, min_cluster_size=2, max_correlation=1.0, metric="correlation",
                         outlier_detection_method='medoid-correlation', outlier_detection_kwargs={}, random_state=0, **kwargs):
         """
         Cluster the given vectors using the specified clustering method.
@@ -691,27 +691,36 @@ class SSAMAnalysis(object):
             else:
                 return lbls
         
-        if method == 'louvain':
+        if method == 'louvain' or method == 'leiden':
             vecs_scaled_dimreduced = get_scaled_vectors()
-            resolution = kwargs.get("resolution", 0.6)
+            resolution = kwargs.get("resolution", 1.0)
             prune = kwargs.get("prune", 1.0/15.0)
             snn_neighbors = kwargs.get("snn_neighbors", 30)
             subclustering = kwargs.get("subclustering", True)
             dbscan_eps = kwargs.get("dbscan_eps", 0.4)
             
-            def cluster_louvain(vecs):
+            def cluster_leiden_or_louvain(vecs):
                 k = min(snn_neighbors, vecs.shape[0])
                 knn_graph = kneighbors_graph(vecs, k, mode='connectivity', include_self=True, metric=metric).todense()
                 intersections = np.dot(knn_graph, knn_graph.T)
                 snn_graph = intersections / (k + (k - intersections)) # borrowed from Seurat
                 snn_graph[snn_graph < prune] = 0
-                G = nx.from_numpy_matrix(snn_graph)
-                partition = community.best_partition(G, resolution=resolution, random_state=random_state)
-                lbls = np.array(list(partition.values()))
+
+                edges = np.argwhere(snn_graph > 0)
+                weights = [snn_graph[i, j] for i, j in edges]
+
+                G = ig.Graph.TupleList(edges=zip(edges[:, 0], edges[:, 1], weights), directed=False, weights=True)
+
+                if method == 'leiden':
+                    partition = leidenalg.find_partition(G, leidenalg.RBConfigurationVertexPartition, seed=random_state, weights="weight", resolution_parameter=resolution)
+                else:
+                    partition = louvain.find_partition(G, louvain.RBConfigurationVertexPartition, seed=random_state, weights="weight", resolution_parameter=resolution)
+
+                lbls = np.array(partition.membership)
                 return lbls
             
             if subclustering:
-                super_lbls = cluster_louvain(vecs_scaled_dimreduced)
+                super_lbls = cluster_leiden_or_louvain(vecs_scaled_dimreduced)
                 dbscan = DBSCAN(eps=dbscan_eps, min_samples=min_cluster_size, metric=metric)
                 all_lbls = np.zeros_like(super_lbls)
                 global_lbl_idx = 0
@@ -728,7 +737,7 @@ class SSAMAnalysis(object):
                         all_lbls[tuple([super_lbl_idx[sub_lbls == sub_lbl]])] = global_lbl_idx
                         global_lbl_idx += 1
             else:
-                all_lbls = cluster_louvain(vecs_scaled_dimreduced)
+                all_lbls = cluster_leiden_or_louvain(vecs_scaled_dimreduced)
         elif method in ["dbscan", "hdbscan", "optics"]:
             vecs_scaled_dimreduced = get_scaled_vectors()
             if method == "dbscan":
