@@ -706,10 +706,13 @@ class SSAMAnalysis(object):
                 snn_graph = intersections / (k + (k - intersections)) # borrowed from Seurat
                 snn_graph[snn_graph < prune] = 0
 
-                edges = np.argwhere(snn_graph > 0)
-                weights = [snn_graph[i, j] for i, j in edges]
+                source_vertices, target_vertices = np.where(snn_graph > 0)
+                weights = snn_graph[source_vertices, target_vertices]
 
-                G = ig.Graph.TupleList(edges=zip(edges[:, 0], edges[:, 1], weights), directed=True, weights=True)
+                G = ig.Graph(directed=True)
+                G.add_vertices(vecs.shape[0])
+                G.add_edges(list(zip(source_vertices, target_vertices)))
+                G.es["weight"] = np.ravel(weights).tolist()
 
                 if method == 'leiden':
                     partition = leidenalg.find_partition(G, leidenalg.RBConfigurationVertexPartition, seed=random_state, weights="weight", resolution_parameter=resolution)
