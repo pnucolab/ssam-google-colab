@@ -17,7 +17,7 @@ from scipy import ndimage
 from sklearn.decomposition import PCA
 from tempfile import TemporaryDirectory
 from sklearn.neighbors import kneighbors_graph
-import lovain, leidenalg
+import louvain, leidenalg
 import igraph as ig
 from sklearn.cluster import DBSCAN, OPTICS
 import hdbscan
