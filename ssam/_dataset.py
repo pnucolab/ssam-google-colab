@@ -245,7 +245,7 @@ class SSAMDataset(object):
             exclude_bad_clusters = False
         pcs = self._run_pca(exclude_bad_clusters, pca_dims, random_state)
         self.tsne = TSNE(n_iter=n_iter, perplexity=perplexity, early_exaggeration=early_exaggeration, metric=metric, random_state=random_state, **tsne_kwargs).fit_transform(pcs[:, :pca_dims])
-        self.zarr_group.array(name='tsne', data=self.tsne)
+        self.zarr_group['tsne'] = self.tsne
 
     def run_umap(self, pca_dims=-1, metric="correlation", min_dist=0.8, exclude_bad_clusters=True, random_state=0, umap_kwargs={}):
         """
@@ -276,7 +276,7 @@ class SSAMDataset(object):
             exclude_bad_clusters = False
         pcs = self._run_pca(exclude_bad_clusters, pca_dims, random_state)
         self.umap = UMAP(metric=metric, random_state=random_state, min_dist=min_dist, **umap_kwargs).fit_transform(pcs[:, :pca_dims])
-        self.zarr_group.array(name='umap', data=self.umap)
+        self.zarr_group['umap'] = self.umap
 
     def plot_embedding(self, method, use_transferred_labels=False, s=None, colors=[], color_excluded="#00000033", cmap="jet"):
         if method == 'umap':
