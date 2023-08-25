@@ -696,7 +696,7 @@ class SSAMAnalysis(object):
             resolution = kwargs.get("resolution", 1.0)
             prune = kwargs.get("prune", 1.0/15.0)
             snn_neighbors = kwargs.get("snn_neighbors", 30)
-            subclustering = kwargs.get("subclustering", True)
+            subclustering = kwargs.get("subclustering", False)
             dbscan_eps = kwargs.get("dbscan_eps", 0.4)
             
             def cluster_leiden_or_louvain(vecs):
@@ -709,7 +709,7 @@ class SSAMAnalysis(object):
                 edges = np.argwhere(snn_graph > 0)
                 weights = [snn_graph[i, j] for i, j in edges]
 
-                G = ig.Graph.TupleList(edges=zip(edges[:, 0], edges[:, 1], weights), directed=False, weights=True)
+                G = ig.Graph.TupleList(edges=zip(edges[:, 0], edges[:, 1], weights), directed=True, weights=True)
 
                 if method == 'leiden':
                     partition = leidenalg.find_partition(G, leidenalg.RBConfigurationVertexPartition, seed=random_state, weights="weight", resolution_parameter=resolution)
