@@ -521,7 +521,7 @@ class SSAMAnalysis(object):
         return
     
     
-    def normalize_vectors(self, normalize_gene=False, normalize_vector=True, normalize_median=False, size_after_normalization=1e6, log_transform=True, max_chunk_size=1024**3/2):
+    def normalize_vectors(self, normalize_gene=False, normalize_vector=True, normalize_median=False, size_after_normalization=10, log_transform=True, max_chunk_size=1024**3/2):
         """
         Normalize and regularize vectors.
 
@@ -584,6 +584,13 @@ class SSAMAnalysis(object):
 
     def scale_vectors(self, max_chunk_size=1024**3/2):
         self._m("Scaling data...")
+
+        if 'vf_scaled' in self.dataset.zarr_group:
+            del self.dataset.zarr_group['vf_scaled']
+        if 'scaled_vectors' in self.dataset.zarr_group:
+            del self.dataset.zarr_group['scaled_vectors']
+
+
         vf_scaled = self.dataset.zarr_group.zeros(name='vf_scaled', shape=self.dataset.vf_normalized.shape, dtype='f4')
         X = self.dataset.vf_normalized[np.ravel(self.dataset.vf_norm > self.dataset.norm_threshold)].compute()
         mu = np.mean(X, axis=0)
@@ -600,8 +607,6 @@ class SSAMAnalysis(object):
         scaled_vec = np.nan_to_num((self.dataset.normalized_vectors - mu) / sigma)
 
         self.dataset.scaled_vectors = scaled_vec
-        if 'scaled_vectors' in self.dataset.zarr_group:
-            del self.dataset.zarr_group['scaled_vectors']
         self.dataset.zarr_group['scaled_vectors'] = self.dataset.scaled_vectors
         self.dataset._try_flush()
         self.dataset.vf_scaled = da.from_zarr(vf_scaled)
