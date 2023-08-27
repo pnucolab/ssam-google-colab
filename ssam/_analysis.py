@@ -1437,13 +1437,11 @@ class SSAMAnalysis(object):
         """
         import cv2
 
-        self.dataset.watershed_segments = np.zeros(self.dataset.vf_norm.shape[:-1], dtype="int32")
-        self.dataset.watershed_celltype_maps = np.zeros(self.dataset.vf_norm.shape[:-1], dtype="int32") - 1
-
         nsegs_prev = 0
-        watershed_segments = np.zeros_like(mask, dtype=int)
-        watershed_celltype_maps = np.zeros_like(mask, dtype=int)
+        watershed_segments = np.zeros_like(mask, dtype=int) - 1
+        watershed_celltype_maps = np.zeros_like(mask, dtype=int) - 1
         for idx in range(np.max(self.dataset.celltype_maps) + 1):
+            self._m("Segmenting cell type #%d..."%idx)
             m = self.dataset.celltype_maps[..., z] == idx
             
             # https://opencv24-python-tutorials.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_watershed/py_watershed.html
@@ -1484,7 +1482,8 @@ class SSAMAnalysis(object):
             img = cv2.cvtColor(grey, cv2.COLOR_GRAY2BGR)
             
             markers = cv2.watershed(img, markers) # -1: border, 0: none, 1: background, 2~: segments
-            markers[markers > 0] -= 2
+            markers -= 2
+            markers[markers < 0] = -1
             markers[~m] = -1
 
             watershed_segments[markers > -1] = markers[markers > -1] + nsegs_prev
@@ -1506,43 +1505,28 @@ class SSAMAnalysis(object):
         :type df: pandas.DataFrame
         """
 
-        def _count_in_segment(x, y, mask):
-            # Determine the boundary of the mask
-            mask_rows, mask_cols = np.where(mask)
-            min_row, max_row = mask_rows.min(), mask_rows.max()
-            min_col, max_col = mask_cols.min(), mask_cols.max()
-            
-            # Filter out the out-of-bound coordinates
-            x = np.round(x).astype(int)
-            y = np.round(y).astype(int)
+        n_segments = np.max(self.dataset.watershed_segments) + 1
 
-            valid_indices = np.logical_and.reduce((
-                x >= min_col,
-                x < max_col,
-                y >= min_row,
-                y < max_row
-            ))
-            
-            x, y = x[valid_indices], y[valid_indices]
-            return np.sum(mask[x, y])
+        cell_by_gene_matrix = np.zeros((n_segments, len(ds.genes)), dtype=int)
 
-        if 'gene' in df.columns:
-            df = df.set_index('gene')
+        x_values = np.round(df['x'].values).astype(int)
+        y_values = np.round(df['y'].values).astype(int)
 
-        if 'z' in df.columns:
-            print("Warning: 'z' column is ignored.")
+        good_mask = np.logical_and(np.logical_and(x_values < self.dataset.shape[0], x_values >= 0), np.logical_and(y_values < self.dataset.shape[1], y_values >= 0))
+        x_values = x_values[good_mask]
+        y_values = y_values[good_mask]
+        gene_names = df.index[good_mask]
 
-        segments = self.dataset.watershed_segments
-        n_genes = len(df.index)
-        n_segments = np.max(segments) + 1
-        cell_by_gene_matrix = np.zeros((n_segments, n_genes), dtype=int)
-
-        x_values = df['x'].values
-        y_values = df['y'].values
-        
-        for seg in range(n_segments):
-            segment_mask = (segments == seg)
-            cell_by_gene_matrix[seg] = _count_in_segment(x_values, y_values, segment_mask)
+        print("Generating spatial mRNA count matrix...")
+        counts = np.zeros([self.dataset.shape[0], self.dataset.shape[1], len(self.dataset.genes)], dtype=int)
+        for gidx, gene in enumerate(ds.genes):
+            gene_mask = gene_names == gene
+            for x, y in zip(x_values[gene_mask], y_values[gene_mask]):
+                counts[x, y, gidx] += 1
+    
+        print("Computing cell-by-gene matrix...")
+        for seg in np.arange(n_segments):
+            cell_by_gene_matrix[seg] = counts[self.dataset.watershed_segments == seg].sum(axis=0)
             
         self.dataset.cell_by_gene_matrix = cell_by_gene_matrix
         self.dataset.zarr_group['cell_by_gene_matrix'] = self.dataset.cell_by_gene_matrix
