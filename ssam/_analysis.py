@@ -1507,7 +1507,7 @@ class SSAMAnalysis(object):
 
         n_segments = np.max(self.dataset.watershed_segments) + 1
 
-        cell_by_gene_matrix = np.zeros((n_segments, len(ds.genes)), dtype=int)
+        cell_by_gene_matrix = np.zeros((n_segments, len(self.dataset.genes)), dtype=int)
 
         x_values = np.round(df['x'].values).astype(int)
         y_values = np.round(df['y'].values).astype(int)
