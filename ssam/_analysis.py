@@ -1519,7 +1519,7 @@ class SSAMAnalysis(object):
 
         print("Generating spatial mRNA count matrix...")
         counts = np.zeros([self.dataset.shape[0], self.dataset.shape[1], len(self.dataset.genes)], dtype=int)
-        for gidx, gene in enumerate(ds.genes):
+        for gidx, gene in enumerate(self.dataset.genes):
             gene_mask = gene_names == gene
             for x, y in zip(x_values[gene_mask], y_values[gene_mask]):
                 counts[x, y, gidx] += 1
