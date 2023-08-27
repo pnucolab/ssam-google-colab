@@ -35,6 +35,9 @@ from sklearn.neighbors import LocalOutlierFactor
 
 import time
 import pyarrow
+
+from scipy.ndimage import map_coordinates
+
 from packaging import version
 
 from .utils import corr, calc_ctmap, calc_corrmap, calc_kde
@@ -259,9 +262,9 @@ class SSAMAnalysis(object):
             self._m("Loaded existing inferred domains compositions.")
             self.dataset.inferred_domains_compositions = self.dataset.zarr_group['inferred_domains_compositions'][:]
         
-        if 'watershed_segmentations' in self.dataset.zarr_group and 'watershed_celltype_maps' in self.dataset.zarr_group:
+        if 'watershed_segments' in self.dataset.zarr_group and 'watershed_celltype_maps' in self.dataset.zarr_group:
             self._m("Loaded existing watershed segmentations.")
-            self.dataset.watershed_segmentations = self.dataset.zarr_group['watershed_segmentations'][:]
+            self.dataset.watershed_segments = self.dataset.zarr_group['watershed_segments'][:]
             self.dataset.watershed_celltype_maps = self.dataset.zarr_group['watershed_celltype_maps'][:]
         
         if 'transferred_cluster_labels' in self.dataset.zarr_group and 'transferred_cluster_correlations' in self.dataset.zarr_group:
@@ -1434,16 +1437,14 @@ class SSAMAnalysis(object):
         """
         import cv2
 
-        self.dataset.watershed_segmentations = np.zeros(self.dataset.vf_norm.shape[:-1], dtype="int32")
+        self.dataset.watershed_segments = np.zeros(self.dataset.vf_norm.shape[:-1], dtype="int32")
         self.dataset.watershed_celltype_maps = np.zeros(self.dataset.vf_norm.shape[:-1], dtype="int32") - 1
 
-        vn = self.dataset.vf_norm.compute()
-
-        from skimage import filters
-        from skimage import exposure
-
+        nsegs_prev = 0
+        watershed_segments = np.zeros_like(mask, dtype=int)
+        watershed_celltype_maps = np.zeros_like(mask, dtype=int)
         for idx in range(np.max(self.dataset.celltype_maps) + 1):
-            m = np.logical_and(self.dataset.celltype_maps == idx, self.dataset.max_correlations > 0.6, vn > self.dataset.norm_threshold)[..., z]
+            m = self.dataset.celltype_maps[..., z] == idx
             
             # https://opencv24-python-tutorials.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_watershed/py_watershed.html
             thresh = np.zeros_like(mask, dtype=np.uint8)
@@ -1482,12 +1483,66 @@ class SSAMAnalysis(object):
             grey = (grey[..., 0] * 255 / np.max(grey)).astype(np.uint8)
             img = cv2.cvtColor(grey, cv2.COLOR_GRAY2BGR)
             
-            markers = cv2.watershed(img, markers)
-            
-            markers[markers < 2] = 0
-            markers[markers > 0] -= 1
-            self.dataset.watershed_celltype_maps[markers > 0] = idx
-            self.dataset.watershed_segmentations += markers
+            markers = cv2.watershed(img, markers) # -1: border, 0: none, 1: background, 2~: segments
+            markers[markers > 0] -= 2
+            markers[~m] = -1
 
-        self.dataset.zarr_group['watershed_segmentations'] = self.dataset.watershed_segmentations
+            watershed_segments[markers > -1] = markers[markers > -1] + nsegs_prev
+            watershed_celltype_maps[markers > -1] = idx
+            
+            nsegs_prev += np.max(markers) + 1
+            
+        self.dataset.watershed_celltype_maps = watershed_celltype_maps
+        self.dataset.watershed_segments = watershed_segments
+
+        self.dataset.zarr_group['watershed_segments'] = self.dataset.watershed_segments
         self.dataset.zarr_group['watershed_celltype_maps'] = self.dataset.watershed_celltype_maps
+
+    def compute_cell_by_gene_matrix(self, df):
+        """
+        Identify and count genes present within each cell segment based on mRNA coordinates.
+
+        :param df: DataFrame containing genes and their corresponding mRNA coordinates. Must contain columns 'x' and 'y', and an index column containing gene names.
+        :type df: pandas.DataFrame
+        """
+
+        def _count_in_segment(x, y, mask):
+            # Determine the boundary of the mask
+            mask_rows, mask_cols = np.where(mask)
+            min_row, max_row = mask_rows.min(), mask_rows.max()
+            min_col, max_col = mask_cols.min(), mask_cols.max()
+            
+            # Filter out the out-of-bound coordinates
+            x = np.round(x).astype(int)
+            y = np.round(y).astype(int)
+
+            valid_indices = np.logical_and.reduce((
+                x >= min_col,
+                x < max_col,
+                y >= min_row,
+                y < max_row
+            ))
+            
+            x, y = x[valid_indices], y[valid_indices]
+            return np.sum(mask[x, y])
+
+        if 'gene' in df.columns:
+            df = df.set_index('gene')
+
+        if 'z' in df.columns:
+            print("Warning: 'z' column is ignored.")
+
+        segments = self.dataset.watershed_segments
+        n_genes = len(df.index)
+        n_segments = np.max(segments) + 1
+        cell_by_gene_matrix = np.zeros((n_segments, n_genes), dtype=int)
+
+        x_values = df['x'].values
+        y_values = df['y'].values
+        
+        for seg in range(n_segments):
+            segment_mask = (segments == seg)
+            cell_by_gene_matrix[seg] = _count_in_segment(x_values, y_values, segment_mask)
+            
+        self.dataset.cell_by_gene_matrix = cell_by_gene_matrix
+        self.dataset.zarr_group['cell_by_gene_matrix'] = self.dataset.cell_by_gene_matrix
