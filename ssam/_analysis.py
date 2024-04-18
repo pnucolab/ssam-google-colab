@@ -40,10 +40,23 @@ from scipy.ndimage import map_coordinates
 
 from packaging import version
 
-from .utils import calc_ctmap, calc_corrmap, calc_kde
+from .utils import calc_corrmap, calc_kde
 
 def corr(a, b):
     return np.corrcoef(a, b)[0, 1]
+
+def calc_ctmap(x, Y):
+    mean_x = np.mean(x)
+    mean_Y = np.mean(Y, axis=1)
+
+    x_diff = x - mean_x
+    Y_diff = Y - mean_Y[:, None]  # np.newaxis 대신 None 사용 가능
+
+    numerator = np.einsum('i,ji->j', x_diff, Y_diff)
+    denominator = np.sqrt(np.einsum('i,i->', x_diff, x_diff) * np.einsum('ji,ji->j', Y_diff, Y_diff))
+    correlation = np.where(denominator == 0, np.nan, numerator / denominator)
+
+    return correlation
 
 def run_sctransform(data, clip_range=None, verbose=True, debug_path=None, plot_model_pars=False, **kwargs):
     """
