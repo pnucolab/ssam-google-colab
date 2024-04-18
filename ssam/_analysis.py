@@ -45,7 +45,7 @@ from .utils import calc_corrmap, calc_kde
 def corr(a, b):
     return np.corrcoef(a, b)[0, 1]
 
-def calc_ctmap(x, Y):
+def calc_ctmap(x, Y, _):
     mean_x = np.mean(x)
     mean_Y = np.mean(Y, axis=1)
 
