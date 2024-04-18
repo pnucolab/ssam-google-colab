@@ -40,7 +40,10 @@ from scipy.ndimage import map_coordinates
 
 from packaging import version
 
-from .utils import corr, calc_ctmap, calc_corrmap, calc_kde
+from .utils import calc_ctmap, calc_corrmap, calc_kde
+
+def corr(a, b):
+    return np.corrcoef(a, b)[0, 1]
 
 def run_sctransform(data, clip_range=None, verbose=True, debug_path=None, plot_model_pars=False, **kwargs):
     """
